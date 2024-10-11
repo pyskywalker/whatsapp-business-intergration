@@ -9,7 +9,7 @@ app.listen(3300, () => {
   console.log("Webhook App is Online");
 });
 
-app.get("/:facilityCode/verification", async (req, res) => {
+app.get("/api/:facilityCode/verification", async (req, res) => {
   let hubMode = req.query["hub.mode"];
   let hubQuery = req.query["hub.challenge"];
   let verificationToken = req.query["hub.verify_token"];
