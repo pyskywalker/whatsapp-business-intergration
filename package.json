@@ -1,0 +1,22 @@
+{
+  "name": "messaging.aurora.co.tz",
+  "version": "1.0.0",
+  "description": "This is the messaging application for whatsapp business messaging service",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pyskywalker/whatsapp-business-intergration.git"
+  },
+  "author": "pyskywalker",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pyskywalker/whatsapp-business-intergration/issues"
+  },
+  "homepage": "https://github.com/pyskywalker/whatsapp-business-intergration#readme",
+  "dependencies": {
+    "express": "^4.21.1"
+  }
+}
