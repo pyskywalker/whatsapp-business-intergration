@@ -1,6 +1,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 
+const { outputLog, inputLog } = require("./utils");
+
 const query = require("./src/query");
 
 const app = express().use(bodyParser.json());
@@ -39,4 +41,17 @@ app.get("/api/:facilityCode/verification", async (req, res) => {
     return res.status(422).send("Invalid verification token");
   }
   //   })
+});
+
+const handleRequest = (body) => {};
+
+app.post("/api/:facilityCode/verification", async (req, res) => {
+  let body = req.body;
+
+  console.log(JSON.stringify(body, null, 2));
+  try {
+    inputLog(JSON.stringify(body, null, 2));
+  } catch (e) {
+    console.log(e);
+  }
 });
