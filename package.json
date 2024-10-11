@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node index.js",
     "migrate": "npx prisma migrate dev",
-    "generate": "npx prisma generate"
+    "generate": "npx prisma generate",
+    "start": "pm2 start index.js --name messaging-service"
   },
   "repository": {
     "type": "git",
