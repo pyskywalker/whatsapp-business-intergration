@@ -14,43 +14,45 @@ datasource db {
 }
 
 model Facilities {
-  id             Int        @id @default(autoincrement())
-  facility_code  String     @unique
-  verify_token   String     @unique
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id                                 Int        @id @default(autoincrement())
+  facility_code                      String     @unique
+  verify_token                       String     @unique
+  access_token                       String?     
+  whatsapp_business_phone_number_id  String?     
+  createdAt                          DateTime   @default(now())
+  updatedAt                          DateTime   @updatedAt
 }
 
 model ReceivedMessages {
-  id                 Int      @id @default(autoincrement()) // Auto-incrementing primary key
-  entry_id           String   // Entry ID from the WhatsApp payload
-  field              String   // Field, e.g., "messages"
-  messaging_product  String   // Messaging product, e.g., "whatsapp"
-  display_phone_number String // Display phone number
-  name               String   // Contact's profile name
-  wa_id              String   // WhatsApp ID (wa_id)
-  message_id         String   // ID of the message
-  timestamp          String   // Timestamp of the message
-  facility_code      String   // Identifier for facility
-  type               String   // Type of message, e.g., "text"
-  text               String?  // Text message body (optional, as some messages may not have text)
-  createdAt          DateTime @default(now()) // Timestamp for when the message was received
+  id                   Int      @id @default(autoincrement()) // Auto-incrementing primary key
+  entry_id             String   // Entry ID from the WhatsApp payload
+  field                String   // Field, e.g., "messages"
+  messaging_product    String   // Messaging product, e.g., "whatsapp"
+  display_phone_number String  // Display phone number
+  name                 String   // Contact's profile name
+  wa_id                String  // WhatsApp ID (wa_id)
+  message_id           String?   // ID of the message
+  timestamp            String   // Timestamp of the message
+  facility_code        String   // Identifier for facility
+  type                 String   // Type of message, e.g., "text"
+  text                 String?  // Text message body (optional, as some messages may not have text)
+  createdAt            DateTime  @default(now()) // Timestamp for when the message was received
 }
 
 model SentMessages {
-  id                          Int      @id @default(autoincrement())
+  id                            Int      @id @default(autoincrement())
   whatsappBusinessPhoneNumberId String  
-  recipientPhoneNumber         String  
-  messageBody                  String  
-  previewUrl                   String?  // Optional field
-  facilityCode                 String 
-  status                       String   @default('active') 
-  message_id                   String?
-  error_message                String?
-  error_code                   String?
-  error_subcode                String?
-  error_type                   String?
-  fbtrace_id                   String?
-  wa_id                        String?
-  createdAt                    DateTime @default(now())
+  recipientPhoneNumber          String  
+  messageBody                   String  
+  previewUrl                    String?  // Optional field
+  facilityCode                  String 
+  status                        String    @default("active")
+  message_id                    String?
+  error_message                 String?
+  error_code                    String?
+  error_subcode                 String?
+  error_type                    String?
+  fbtrace_id                    String?
+  wa_id                         String?
+  createdAt                     DateTime  @default(now())
 }

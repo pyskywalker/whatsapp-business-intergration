@@ -1,7 +1,13 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 
-const { outputLog, inputLog, errorLog, sendMessages } = require("./utils");
+const {
+  outputLog,
+  inputLog,
+  errorLog,
+  sendMessages,
+  sendTemplateMessage,
+} = require("./utils");
 
 const query = require("./src/query");
 
@@ -49,8 +55,8 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
   try {
     const { object, entry } = req.body;
     const facilityCode = req.params.facilityCode;
-    outputLog("REQUEST OUTPUT");
-    outputLog(JSON.stringify(req.body));
+    inputLog("REQUEST OUTPUT");
+    inputLog(JSON.stringify(req.body));
     let messagesArray = [];
     // Loop through each entry in the payload
     entry.forEach((entryItem) => {
@@ -59,17 +65,14 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
       entryItem.changes.forEach((change) => {
         const { field, value } = change;
 
-        // Extract metadata and message info
         const { messaging_product, metadata, contacts, messages } = value;
         const { display_phone_number } = metadata;
 
-        // Loop through each message and store them in the array
         messages.forEach((message) => {
           const contact = contacts.find(
             (contact) => contact.wa_id === message.from
           );
 
-          // If contact is found, create an object and store it in the array
           if (contact) {
             const messageObject = {
               entry_id,
@@ -82,7 +85,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
               timestamp: message.timestamp,
               facility_code: facilityCode,
               type: message.type,
-              text: message.text?.body || null, // Handles text messages
+              text: message.text?.body || null,
             };
 
             // Push the message object to the messagesArray
@@ -143,7 +146,7 @@ app.post("/api/:facilityCode/send-message", async (req, res) => {
     !messageBody ||
     !facilityCode
   ) {
-    return res.status(400).json({ error: "Missing required fields." });
+    return res.status(422).json({ error: "Missing required fields." });
   }
 
   let sentMessage;
@@ -181,7 +184,57 @@ app.post("/api/:facilityCode/send-message", async (req, res) => {
   }
 });
 
-// Error handler
+app.post("/api/:facilityCode/send-template-message", async (req, res) => {
+  const {
+    whatsappBusinessPhoneNumberId,
+    accessToken,
+    recipientPhoneNumber,
+    patientName,
+    facilityCode,
+    hospitalName,
+  } = req.body;
+
+  // Validate required fields
+
+  if (
+    !whatsappBusinessPhoneNumberId ||
+    !accessToken ||
+    !recipientPhoneNumber ||
+    !hospitalName ||
+    !facilityCode ||
+    !patientName
+  ) {
+    return res.status(422).json({ error: "Missing required fields." });
+  }
+
+  try {
+    // Save WhatsApp message
+    const messageData = {
+      whatsappBusinessPhoneNumberId,
+      recipientPhoneNumber,
+      hospitalName,
+      accessToken,
+      patientName,
+      facilityCode,
+    };
+
+    sendTemplateMessage(
+      whatsappBusinessPhoneNumberId,
+      accessToken,
+      recipientPhoneNumber,
+      hospitalName,
+      patientName
+    );
+
+    res.status(200).json({
+      message: "Message received.",
+      data: messageData,
+    });
+  } catch (error) {
+    errorLog(JSON.stringify(error));
+  }
+});
+
 function handleError(res, error, messageId) {
   console.error("Error:", error);
 
@@ -206,7 +259,6 @@ function handleError(res, error, messageId) {
   });
 }
 
-// Handle WhatsApp Response
 async function handleWhatsAppResponse(response, messageId) {
   if (response?.messaging_product === "whatsapp") {
     const wa_id = response.contacts?.[0]?.wa_id || null;

@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-
+require("dotenv").config();
 const axios = require("axios");
 
 const sendMessages = async (
@@ -10,7 +10,7 @@ const sendMessages = async (
   messageBody,
   previewUrl = false
 ) => {
-  const url = `https://graph.facebook.com/v21.0/${whatsappBusinessPhoneNumberId}/messages`;
+  const url = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION}/${whatsappBusinessPhoneNumberId}/messages`;
 
   const postData = {
     messaging_product: "whatsapp",
@@ -33,12 +33,83 @@ const sendMessages = async (
     console.log("Message sent successfully:", response.data);
     return response.data;
   } catch (error) {
-    console.error(
-      "Error sending message:",
-      error.response ? error.response.data : error.message
+    errorLog(
+      JSON.stringify(
+        "Error sending message:" + " - " + error.response
+          ? error.response.data
+          : error.message
+      )
     );
     throw error;
   }
+};
+
+const   sendTemplateMessage = (
+  whatsappBusinessPhoneNumberId,
+  accessToken,
+  recipientPhoneNumber,
+  hospitalName,
+  patientName
+) => {
+  const url = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION}/${whatsappBusinessPhoneNumberId}/messages`;
+  let response = null;
+  axios
+    .post(
+      url,
+      {
+        messaging_product: "whatsapp",
+        to: recipientPhoneNumber,
+        type: "template",
+        template: {
+          name: "huduma_kwa_wateja",
+          language: { code: "sw" },
+          components: [
+            {
+              type: "header",
+              parameters: [
+                {
+                  type: "text",
+                  text: hospitalName,
+                },
+              ],
+            },
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  text: patientName,
+                },
+                {
+                  type: "text",
+                  text: hospitalName,
+                },
+              ],
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Example for bearer token
+          "Content-Type": "application/json",
+        },
+      }
+    )
+    .then((response) => {
+      outputLog(JSON.stringify(response.data));
+      response = response.data;
+    })
+    .catch((error) => {
+      errorLog(
+        JSON.stringify(
+          "Error sending message:" + " - " + error.response
+            ? error.response.data
+            : error.message
+        )
+      );
+      response = { error: "surely" };
+    });
 };
 
 const inputLog = (message) => {
@@ -97,4 +168,5 @@ module.exports = {
   outputLog,
   errorLog,
   sendMessages,
+  sendTemplateMessage,
 };
