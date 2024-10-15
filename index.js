@@ -49,6 +49,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
   try {
     const { object, entry } = req.body;
     const facilityCode = req.params.facilityCode;
+    outputLog("REQUEST OUTPUT");
     outputLog(JSON.stringify(req.body));
     let messagesArray = [];
     // Loop through each entry in the payload
