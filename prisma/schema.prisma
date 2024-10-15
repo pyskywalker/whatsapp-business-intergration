@@ -36,3 +36,21 @@ model ReceivedMessages {
   text               String?  // Text message body (optional, as some messages may not have text)
   createdAt          DateTime @default(now()) // Timestamp for when the message was received
 }
+
+model SentMessages {
+  id                          Int      @id @default(autoincrement())
+  whatsappBusinessPhoneNumberId String  
+  recipientPhoneNumber         String  
+  messageBody                  String  
+  previewUrl                   String?  // Optional field
+  facilityCode                 String 
+  status                       String   @default('active') 
+  message_id                   String?
+  error_message                String?
+  error_code                   String?
+  error_subcode                String?
+  error_type                   String?
+  fbtrace_id                   String?
+  wa_id                        String?
+  createdAt                    DateTime @default(now())
+}

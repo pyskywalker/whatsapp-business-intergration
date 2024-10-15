@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 
-const { outputLog, inputLog, errorLog } = require("./utils");
+const { outputLog, inputLog, errorLog, sendMessages } = require("./utils");
 
 const query = require("./src/query");
 
@@ -49,6 +49,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
   try {
     const { object, entry } = req.body;
     const facilityCode = req.params.facilityCode;
+    outputLog(JSON.stringify(req.body));
     let messagesArray = [];
     // Loop through each entry in the payload
     entry.forEach((entryItem) => {
@@ -122,3 +123,105 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
+app.post("/api/:facilityCode/send-message", async (req, res) => {
+  const {
+    whatsappBusinessPhoneNumberId,
+    accessToken,
+    recipientPhoneNumber,
+    messageBody,
+    previewUrl,
+    facilityCode,
+  } = req.body;
+
+  // Validate required fields
+  if (
+    !whatsappBusinessPhoneNumberId ||
+    !accessToken ||
+    !recipientPhoneNumber ||
+    !messageBody ||
+    !facilityCode
+  ) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
+
+  let sentMessage;
+
+  try {
+    // Save WhatsApp message
+    const messageData = {
+      whatsappBusinessPhoneNumberId,
+      recipientPhoneNumber,
+      messageBody,
+      previewUrl,
+      facilityCode,
+    };
+
+    sentMessage = await query("SentMessages").create({ data: messageData });
+
+    // Send WhatsApp message
+    const response = await sendMessages(
+      whatsappBusinessPhoneNumberId,
+      accessToken,
+      recipientPhoneNumber,
+      messageBody,
+      previewUrl
+    );
+
+    // Process response
+    await handleWhatsAppResponse(response, sentMessage.id);
+
+    res.status(200).json({
+      message: "Message sent successfully.",
+      data: sentMessage,
+    });
+  } catch (error) {
+    handleError(res, error, sentMessage?.id);
+  }
+});
+
+// Error handler
+function handleError(res, error, messageId) {
+  console.error("Error:", error);
+
+  if (messageId) {
+    const { message, type, code, error_subcode, fbtrace_id } = error;
+    query("SentMessages").update({
+      where: { id: messageId },
+      data: {
+        error_message: message,
+        error_code: code,
+        error_subcode: error_subcode,
+        fbtrace_id,
+        error_type: type,
+        status: "failed",
+      },
+    });
+  }
+
+  return res.status(500).json({
+    message: "Failed to send message.",
+    error: error.message,
+  });
+}
+
+// Handle WhatsApp Response
+async function handleWhatsAppResponse(response, messageId) {
+  if (response?.messaging_product === "whatsapp") {
+    const wa_id = response.contacts?.[0]?.wa_id || null;
+    const message_id = response.messages?.[0]?.id || null;
+
+    if (wa_id && message_id && messageId) {
+      await query("SentMessages").update({
+        where: { id: messageId },
+        data: {
+          message_id,
+          wa_id,
+          status: "sent",
+        },
+      });
+    }
+  } else {
+    throw new Error("Invalid WhatsApp response.");
+  }
+}

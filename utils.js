@@ -1,6 +1,46 @@
 const fs = require("fs");
 const path = require("path");
 
+const axios = require("axios");
+
+const sendMessages = async (
+  whatsappBusinessPhoneNumberId,
+  accessToken,
+  recipientPhoneNumber,
+  messageBody,
+  previewUrl = false
+) => {
+  const url = `https://graph.facebook.com/v21.0/${whatsappBusinessPhoneNumberId}/messages`;
+
+  const postData = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: recipientPhoneNumber,
+    type: "text",
+    text: {
+      preview_url: previewUrl,
+      body: messageBody,
+    },
+  };
+
+  try {
+    const response = await axios.post(url, postData, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    console.log("Message sent successfully:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error sending message:",
+      error.response ? error.response.data : error.message
+    );
+    throw error;
+  }
+};
+
 const inputLog = (message) => {
   const logFilePath = path.join(__dirname, "receive.log");
 
@@ -56,4 +96,5 @@ module.exports = {
   inputLog,
   outputLog,
   errorLog,
+  sendMessages,
 };
