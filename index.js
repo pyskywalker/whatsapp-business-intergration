@@ -17,9 +17,7 @@ const query = require("./src/query");
 
 const app = express().use(bodyParser.json());
 
-const socketApp = express().use(cors());
-
-const server = http.createServer(socketApp);
+const server = http.createServer(app);
 
 const io = new SocketIo(server, {
   cors: {
@@ -28,13 +26,7 @@ const io = new SocketIo(server, {
   },
 });
 
-app.listen(3300, () => {
-  console.log("Webhook App is Online");
-});
-
-server.listen(3400, () => {
-  console.log("Websocket App is Online");
-});
+app.set("io", io);
 
 app.get("/api/:facilityCode/verification", async (req, res) => {
   let hubMode = req.query["hub.mode"];
@@ -113,14 +105,14 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
         });
       });
     });
-
+    const io = req.app.get("io");
     messagesArray.forEach(async (element) => {
       const existingMessage = await query("ReceivedMessages").findFirst({
         where: {
           message_id: element.message_id,
         },
       });
-      if (!existingMessage)
+      if (!existingMessage) {
         query("ReceivedMessages")
           .create({
             data: element,
@@ -133,10 +125,15 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
                 JSON.stringify(element)
             )
           );
-      else {
+        io.to(`${facilityCode}-${element.display_phone_number}`).emit(
+          "receive_messages",
+          { ...messagesArray, status: "receive" }
+        );
+      } else {
         errorLog("Message ID already exists:" + element.message_id);
       }
     });
+
     res.status(200).json({
       message: "Messages received and stored successfully",
       stored_messages: messagesArray.length,
@@ -298,82 +295,82 @@ async function handleWhatsAppResponse(response, messageId) {
   }
 }
 
-app.post("/api/:facilityCode/verification", async (req, res) => {
-  try {
-    const { object, entry } = req.body;
-    const facilityCode = req.params.facilityCode;
-    inputLog("REQUEST OUTPUT");
-    inputLog(JSON.stringify(req.body));
-    let messagesArray = [];
-    // Loop through each entry in the payload
-    entry.forEach((entryItem) => {
-      const entry_id = entryItem.id;
-      // Loop through changes in each entry
-      entryItem.changes.forEach((change) => {
-        const { field, value } = change;
+// app.post("/api/:facilityCode/verification", async (req, res) => {
+//   try {
+//     const { object, entry } = req.body;
+//     const facilityCode = req.params.facilityCode;
+//     inputLog("REQUEST OUTPUT");
+//     inputLog(JSON.stringify(req.body));
+//     let messagesArray = [];
+//     // Loop through each entry in the payload
+//     entry.forEach((entryItem) => {
+//       const entry_id = entryItem.id;
+//       // Loop through changes in each entry
+//       entryItem.changes.forEach((change) => {
+//         const { field, value } = change;
 
-        const { messaging_product, metadata, contacts, messages } = value;
-        const { display_phone_number } = metadata;
+//         const { messaging_product, metadata, contacts, messages } = value;
+//         const { display_phone_number } = metadata;
 
-        messages.forEach((message) => {
-          const contact = contacts.find(
-            (contact) => contact.wa_id === message.from
-          );
+//         messages.forEach((message) => {
+//           const contact = contacts.find(
+//             (contact) => contact.wa_id === message.from
+//           );
 
-          if (contact) {
-            const messageObject = {
-              entry_id,
-              field,
-              messaging_product,
-              display_phone_number,
-              name: contact.profile.name,
-              wa_id: contact.wa_id,
-              message_id: message.id,
-              timestamp: message.timestamp,
-              facility_code: facilityCode,
-              type: message.type,
-              text: message.text?.body || null,
-            };
+//           if (contact) {
+//             const messageObject = {
+//               entry_id,
+//               field,
+//               messaging_product,
+//               display_phone_number,
+//               name: contact.profile.name,
+//               wa_id: contact.wa_id,
+//               message_id: message.id,
+//               timestamp: message.timestamp,
+//               facility_code: facilityCode,
+//               type: message.type,
+//               text: message.text?.body || null,
+//             };
 
-            // Push the message object to the messagesArray
-            messagesArray.push(messageObject);
-          }
-        });
-      });
-    });
+//             // Push the message object to the messagesArray
+//             messagesArray.push(messageObject);
+//           }
+//         });
+//       });
+//     });
 
-    messagesArray.forEach(async (element) => {
-      const existingMessage = await query("ReceivedMessages").findFirst({
-        where: {
-          message_id: element.message_id,
-        },
-      });
-      if (!existingMessage)
-        query("ReceivedMessages")
-          .create({
-            data: element,
-          })
-          .catch((e) =>
-            errorLog(
-              "INSERTION ERROR:  " +
-                JSON.stringify(e) +
-                "Request:  " +
-                JSON.stringify(element)
-            )
-          );
-      else {
-        errorLog("Message ID already exists:" + element.message_id);
-      }
-    });
-    res.status(200).json({
-      message: "Messages received and stored successfully",
-      stored_messages: messagesArray.length,
-    });
-  } catch (error) {
-    errorLog("Error processing messages:   " + error);
-    res.status(500).send("Internal Server Error");
-  }
-});
+//     messagesArray.forEach(async (element) => {
+//       const existingMessage = await query("ReceivedMessages").findFirst({
+//         where: {
+//           message_id: element.message_id,
+//         },
+//       });
+//       if (!existingMessage)
+//         query("ReceivedMessages")
+//           .create({
+//             data: element,
+//           })
+//           .catch((e) =>
+//             errorLog(
+//               "INSERTION ERROR:  " +
+//                 JSON.stringify(e) +
+//                 "Request:  " +
+//                 JSON.stringify(element)
+//             )
+//           );
+//       else {
+//         errorLog("Message ID already exists:" + element.message_id);
+//       }
+//     });
+//     res.status(200).json({
+//       message: "Messages received and stored successfully",
+//       stored_messages: messagesArray.length,
+//     });
+//   } catch (error) {
+//     errorLog("Error processing messages:   " + error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
 
 io.on("connection", (socket) => {
   console.log(`USER CONNECTED : ${socket.id}`);
@@ -392,10 +389,6 @@ io.on("connection", (socket) => {
   });
 });
 
-socketApp.post("/emit-messages", (req, res) => {
-  const { facilityCode, messagesArray } = req.body;
-
-  io.to(facilityCode).emit("receive_messages", messagesArray);
-
-  res.status(200).send("Messages emitted");
+server.listen(3300, () => {
+  console.log("Webhook App is Online");
 });
