@@ -1,5 +1,9 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const cors = require("cors");
+const http = require("http");
+
+const { Server: SocketIo } = require("socket.io");
 
 const {
   outputLog,
@@ -13,8 +17,23 @@ const query = require("./src/query");
 
 const app = express().use(bodyParser.json());
 
+const socketApp = express().use(cors());
+
+const server = http.createServer(socketApp);
+
+const io = new SocketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
 app.listen(3300, () => {
   console.log("Webhook App is Online");
+});
+
+server.listen(3400, () => {
+  console.log("Websocket App is Online");
 });
 
 app.get("/api/:facilityCode/verification", async (req, res) => {
@@ -278,3 +297,105 @@ async function handleWhatsAppResponse(response, messageId) {
     throw new Error("Invalid WhatsApp response.");
   }
 }
+
+app.post("/api/:facilityCode/verification", async (req, res) => {
+  try {
+    const { object, entry } = req.body;
+    const facilityCode = req.params.facilityCode;
+    inputLog("REQUEST OUTPUT");
+    inputLog(JSON.stringify(req.body));
+    let messagesArray = [];
+    // Loop through each entry in the payload
+    entry.forEach((entryItem) => {
+      const entry_id = entryItem.id;
+      // Loop through changes in each entry
+      entryItem.changes.forEach((change) => {
+        const { field, value } = change;
+
+        const { messaging_product, metadata, contacts, messages } = value;
+        const { display_phone_number } = metadata;
+
+        messages.forEach((message) => {
+          const contact = contacts.find(
+            (contact) => contact.wa_id === message.from
+          );
+
+          if (contact) {
+            const messageObject = {
+              entry_id,
+              field,
+              messaging_product,
+              display_phone_number,
+              name: contact.profile.name,
+              wa_id: contact.wa_id,
+              message_id: message.id,
+              timestamp: message.timestamp,
+              facility_code: facilityCode,
+              type: message.type,
+              text: message.text?.body || null,
+            };
+
+            // Push the message object to the messagesArray
+            messagesArray.push(messageObject);
+          }
+        });
+      });
+    });
+
+    messagesArray.forEach(async (element) => {
+      const existingMessage = await query("ReceivedMessages").findFirst({
+        where: {
+          message_id: element.message_id,
+        },
+      });
+      if (!existingMessage)
+        query("ReceivedMessages")
+          .create({
+            data: element,
+          })
+          .catch((e) =>
+            errorLog(
+              "INSERTION ERROR:  " +
+                JSON.stringify(e) +
+                "Request:  " +
+                JSON.stringify(element)
+            )
+          );
+      else {
+        errorLog("Message ID already exists:" + element.message_id);
+      }
+    });
+    res.status(200).json({
+      message: "Messages received and stored successfully",
+      stored_messages: messagesArray.length,
+    });
+  } catch (error) {
+    errorLog("Error processing messages:   " + error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+io.on("connection", (socket) => {
+  console.log(`USER CONNECTED : ${socket.id}`);
+
+  socket.on("join_chat", (data) => {
+    socket.join(data);
+    console.log(`USER WITH ID: ${socket.id} joined chat: ${data}`);
+  });
+
+  socket.on("send_message", (data) => {
+    console.log(data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User Disconnected", socket.id);
+  });
+});
+
+socketApp.post("/emit-messages", (req, res) => {
+  const { facilityCode, messagesArray } = req.body;
+
+  io.to(facilityCode).emit("receive_messages", messagesArray);
+
+  res.status(200).send("Messages emitted");
+});
