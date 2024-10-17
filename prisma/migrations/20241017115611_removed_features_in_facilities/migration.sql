@@ -6,5 +6,5 @@
 
 */
 -- AlterTable
-ALTER TABLE `facilities` DROP COLUMN `access_token`,
+ALTER TABLE `Facilities` DROP COLUMN `access_token`,
     DROP COLUMN `whatsapp_business_phone_number_id`;

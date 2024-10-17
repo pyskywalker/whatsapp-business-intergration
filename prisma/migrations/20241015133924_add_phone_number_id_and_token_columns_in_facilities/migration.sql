@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `facilities` ADD COLUMN `access_token` VARCHAR(191) NULL,
+ALTER TABLE `Facilities` ADD COLUMN `access_token` VARCHAR(191) NULL,
     ADD COLUMN `whatsapp_business_phone_number_id` VARCHAR(191) NULL;
 
 -- AlterTable
