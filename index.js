@@ -125,6 +125,11 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
                 JSON.stringify(element)
             )
           );
+
+        console.log(
+          `${facilityCode}-${element.display_phone_number}`,
+          " SENT MESSAGE TO CHAT"
+        );
         io.to(`${facilityCode}-${element.display_phone_number}`).emit(
           "receive_messages",
           { ...messagesArray, status: "receive" }
@@ -431,6 +436,7 @@ io.on("connection", (socket) => {
             recipientPhoneNumber,
             messageBody
           );
+          console.log(response);
           await handleWhatsAppResponse(response, sentMessage.id);
         } catch (error) {
           handleError(null, error, insertId);
