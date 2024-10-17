@@ -127,11 +127,11 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
           );
 
         console.log(
-          `${facilityCode}-${element.display_phone_number}`,
+          `${facilityCode}-${element.wa_id}`,
           " SENT MESSAGE TO CHAT"
         );
         io.to(`${facilityCode}-${element.wa_id}`).emit("receive_messages", {
-          ...messagesArray,
+          ...receive_messages,
           status: "receive",
         });
       } else {
