@@ -3,7 +3,7 @@ ALTER TABLE `facilities` ADD COLUMN `access_token` VARCHAR(191) NULL,
     ADD COLUMN `whatsapp_business_phone_number_id` VARCHAR(191) NULL;
 
 -- AlterTable
-ALTER TABLE `receivedmessages` MODIFY `message_id` VARCHAR(191) NULL;
+ALTER TABLE `ReceivedMessages` MODIFY `message_id` VARCHAR(191) NULL;
 
 -- CreateTable
 CREATE TABLE `SentMessages` (
