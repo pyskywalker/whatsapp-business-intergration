@@ -44,7 +44,7 @@ const sendMessages = async (
   }
 };
 
-const   sendTemplateMessage = (
+const sendTemplateMessage = (
   whatsappBusinessPhoneNumberId,
   accessToken,
   recipientPhoneNumber,

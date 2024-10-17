@@ -200,13 +200,12 @@ app.post("/api/:facilityCode/send-message", async (req, res) => {
   }
 });
 
-app.post("/api/:facilityCode/send-template-message", async (req, res) => {
+app.post("/api/send-template-message", async (req, res) => {
   const {
     whatsappBusinessPhoneNumberId,
     accessToken,
     recipientPhoneNumber,
     patientName,
-    facilityCode,
     hospitalName,
   } = req.body;
 
@@ -217,7 +216,6 @@ app.post("/api/:facilityCode/send-template-message", async (req, res) => {
     !accessToken ||
     !recipientPhoneNumber ||
     !hospitalName ||
-    !facilityCode ||
     !patientName
   ) {
     return res.status(422).json({ error: "Missing required fields." });
@@ -231,7 +229,6 @@ app.post("/api/:facilityCode/send-template-message", async (req, res) => {
       hospitalName,
       accessToken,
       patientName,
-      facilityCode,
     };
 
     sendTemplateMessage(
@@ -268,11 +265,19 @@ function handleError(res, error, messageId) {
       },
     });
   }
-
-  return res.status(500).json({
-    message: "Failed to send message.",
-    error: error.message,
-  });
+  if (res) {
+    return res.status(500).json({
+      message: "Failed to send message.",
+      error: error.message,
+    });
+  } else {
+    errorLog(
+      JSON.stringify({
+        message: "Failed to send message.",
+        error: error,
+      })
+    );
+  }
 }
 
 async function handleWhatsAppResponse(response, messageId) {
@@ -380,9 +385,59 @@ io.on("connection", (socket) => {
     console.log(`USER WITH ID: ${socket.id} joined chat: ${data}`);
   });
 
-  socket.on("send_message", (data) => {
-    console.log(data);
-  });
+  socket.on(
+    "send_message",
+    async ({
+      whatsappBusinessPhoneNumberId,
+      accessToken,
+      recipientPhoneNumber,
+      messageBody,
+      facilityCode,
+    }) => {
+      if (
+        !whatsappBusinessPhoneNumberId ||
+        !accessToken ||
+        !recipientPhoneNumber ||
+        !messageBody ||
+        !facilityCode
+      ) {
+        console.error({ error: "Missing required fields." });
+        console.log(
+          whatsappBusinessPhoneNumberId,
+          accessToken,
+          recipientPhoneNumber,
+          messageBody,
+          facilityCode
+        );
+      } else {
+        let insertId = 0;
+
+        const messageData = {
+          whatsappBusinessPhoneNumberId,
+          recipientPhoneNumber,
+          messageBody,
+          facilityCode,
+        };
+
+        try {
+          const sentMessage = await query("SentMessages").create({
+            data: messageData,
+          });
+          insertId = sentMessage.id;
+          // Send WhatsApp message
+          const response = await sendMessages(
+            whatsappBusinessPhoneNumberId,
+            accessToken,
+            recipientPhoneNumber,
+            messageBody
+          );
+          await handleWhatsAppResponse(response, sentMessage.id);
+        } catch (error) {
+          handleError(null, error, insertId);
+        }
+      }
+    }
+  );
 
   socket.on("disconnect", () => {
     console.log("User Disconnected", socket.id);
