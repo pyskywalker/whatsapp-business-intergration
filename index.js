@@ -130,10 +130,10 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
           `${facilityCode}-${element.display_phone_number}`,
           " SENT MESSAGE TO CHAT"
         );
-        io.to(`${facilityCode}-${element.display_phone_number}`).emit(
-          "receive_messages",
-          { ...messagesArray, status: "receive" }
-        );
+        io.to(`${facilityCode}-${element.wa_id}`).emit("receive_messages", {
+          ...messagesArray,
+          status: "receive",
+        });
       } else {
         errorLog("Message ID already exists:" + element.message_id);
       }
