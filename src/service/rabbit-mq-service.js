@@ -1,9 +1,7 @@
 // messageQueue.js
 
 const amqp = require("amqplib");
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
+const query = require("../query");
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://localhost";
 
@@ -29,7 +27,7 @@ async function publishToQueue(facilityCode, data) {
             console.error("Message was not acknowledged!", err);
 
             // Update the message status to 'failed' in the database
-            await prisma.receivedMessages.updateMany({
+            await query("receivedMessages").updateMany({
               where: { message_id: data.message_id },
               data: { status: "failed" },
             });
@@ -42,7 +40,7 @@ async function publishToQueue(facilityCode, data) {
             console.log("Message acknowledged by RabbitMQ");
 
             // Update the message status to 'delivered' in the database
-            await prisma.receivedMessages.updateMany({
+            await query("receivedMessages").updateMany({
               where: { message_id: data.message_id },
               data: { status: "delivered" },
             });

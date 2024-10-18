@@ -1,6 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const cors = require("cors");
+
 const http = require("http");
 
 const {
@@ -12,6 +12,11 @@ const {
 } = require("./utils");
 
 const query = require("./src/query");
+
+const {
+  publishToQueue,
+  acknowledgeResponse,
+} = require("./src/service/rabbit-mq-service");
 
 const app = express().use(bodyParser.json());
 
@@ -48,10 +53,6 @@ app.get("/api/:facilityCode/verification", async (req, res) => {
   }
   //   })
 });
-
-const handleRequest = (body) => {};
-
-const publishToQueue = (facilityCode, data) => {};
 
 app.post("/api/:facilityCode/verification", async (req, res) => {
   try {
@@ -120,11 +121,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
             )
           );
         console.log("1");
-        if (waId !== element.wa_id) {
-          waId = element.wa_id;
-          publishToQueue(facilityCode, element);
-          console.log("2");
-        }
+        publishToQueue(facilityCode, element);
         console.log(`${facilityCode}-${element.wa_id}`, " Saved Message");
       } else {
         errorLog("Message ID already exists:" + element.message_id);
