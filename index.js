@@ -77,7 +77,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
         const { field, value } = change;
 
         const { messaging_product, metadata, contacts, messages } = value;
-        const { display_phone_number } = metadata;
+        const { display_phone_number, phone_number_id } = metadata;
 
         messages.forEach((message) => {
           const contact = contacts.find(
@@ -97,6 +97,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
               facility_code: facilityCode,
               type: message.type,
               text: message.text?.body || null,
+              whatsappBusinessPhoneNumberId: phone_number_id || null,
             };
 
             // Push the message object to the messagesArray
@@ -105,7 +106,10 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
         });
       });
     });
+
+    let waId;
     const io = req.app.get("io");
+
     messagesArray.forEach(async (element) => {
       const existingMessage = await query("ReceivedMessages").findFirst({
         where: {
@@ -113,7 +117,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
         },
       });
       if (!existingMessage) {
-        query("ReceivedMessages")
+        await query("ReceivedMessages")
           .create({
             data: element,
           })
@@ -125,15 +129,13 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
                 JSON.stringify(element)
             )
           );
-
-        console.log(
-          `${facilityCode}-${element.wa_id}`,
-          " SENT MESSAGE TO CHAT"
-        );
-        io.to(`${facilityCode}-${element.wa_id}`).emit("receive_messages", {
-          ...element,
-          status: "receive",
-        });
+        console.log("1");
+        if (waId !== element.wa_id) {
+          waId = element.wa_id;
+          receiveMessages(io, `${facilityCode}-${element.wa_id}`);
+          console.log("2");
+        }
+        console.log(`${facilityCode}-${element.wa_id}`, " Saved Message");
       } else {
         errorLog("Message ID already exists:" + element.message_id);
       }
@@ -382,12 +384,83 @@ async function handleWhatsAppResponse(response, messageId) {
 //   }
 // });
 
+const receiveMessages = async (io, data) => {
+  const request = data.split("-");
+  const receivedMessages = await query("ReceivedMessages").findMany({
+    where: {
+      wa_id: request[1],
+      facility_code: request[0],
+      status: "active",
+    },
+  });
+  // console.log(receivedMessages);
+  console.log("SENT MESSAGE TO  ", data);
+  io.to(data).emit("receive_messages", receivedMessages);
+};
+
+const getContacts = async (io, whatsappBusinessPhoneNumberId, room) => {
+  const groupedMessages = await query("ReceivedMessages").groupBy({
+    by: ["wa_id"],
+    where: {
+      whatsappBusinessPhoneNumberId,
+      status: "active",
+    },
+    _count: {
+      _all: true,
+    },
+    _max: {
+      timestamp: true,
+    },
+  });
+
+  // Step 2: Fetch the latest message for each wa_id
+  const latestMessages = await Promise.all(
+    groupedMessages.map(async (group) => {
+      const latestMessage = await query("ReceivedMessages").findFirst({
+        where: {
+          wa_id: group.wa_id,
+          timestamp: group._max.timestamp,
+          whatsappBusinessPhoneNumberId,
+          status: "active",
+        },
+        orderBy: {
+          timestamp: "desc",
+        },
+      });
+
+      return {
+        ...latestMessage,
+        count: group._count._all,
+      };
+    })
+  );
+
+  io.to(room).emit("contacts", latestMessages);
+};
+
 io.on("connection", (socket) => {
   console.log(`USER CONNECTED : ${socket.id}`);
 
   socket.on("join_chat", (data) => {
     socket.join(data);
+    console.log(data.split("-"));
+
     console.log(`USER WITH ID: ${socket.id} joined chat: ${data}`);
+    receiveMessages(io, data);
+  });
+
+  socket.on("read_messages", ({ wa_id, whatsappBusinessPhoneNumberId }) => {
+    console.log(wa_id, whatsappBusinessPhoneNumberId);
+    query("ReceivedMessages").updateMany({
+      where: {
+        wa_id: wa_id,
+        whatsappBusinessPhoneNumberId: whatsappBusinessPhoneNumberId,
+        status: "active",
+      },
+      data: {
+        status: "read",
+      },
+    });
   });
 
   socket.on(

@@ -23,19 +23,21 @@ model Facilities {
 }
 
 model ReceivedMessages {
-  id                   Int      @id @default(autoincrement()) // Auto-incrementing primary key
-  entry_id             String   // Entry ID from the WhatsApp payload
-  field                String   // Field, e.g., "messages"
-  messaging_product    String   // Messaging product, e.g., "whatsapp"
-  display_phone_number String  // Display phone number
-  name                 String   // Contact's profile name
-  wa_id                String  // WhatsApp ID (wa_id)
-  message_id           String?   // ID of the message
-  timestamp            String   // Timestamp of the message
-  facility_code        String   // Identifier for facility
-  type                 String   // Type of message, e.g., "text"
-  text                 String?  // Text message body (optional, as some messages may not have text)
-  createdAt            DateTime  @default(now()) // Timestamp for when the message was received
+  id                            Int      @id @default(autoincrement()) // Auto-incrementing primary key
+  entry_id                      String   // Entry ID from the WhatsApp payload
+  field                         String   // Field, e.g., "messages"
+  messaging_product             String   // Messaging product, e.g., "whatsapp"
+  display_phone_number          String  // Display phone number
+  name                          String   // Contact's profile name
+  wa_id                         String  // WhatsApp ID (wa_id)
+  message_id                    String?   // ID of the message
+  timestamp                     String   // Timestamp of the message
+  facility_code                 String   // Identifier for facility
+  type                          String   // Type of message, e.g., "text"
+  text                          String?  // Text message body (optional, as some messages may not have text)
+  createdAt                     DateTime  @default(now()) // Timestamp for when the message was received
+  status                        String    @default("active")
+  whatsappBusinessPhoneNumberId String?
 }
 
 model SentMessages {
