@@ -3,8 +3,6 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const http = require("http");
 
-const { Server: SocketIo } = require("socket.io");
-
 const {
   outputLog,
   inputLog,
@@ -18,15 +16,6 @@ const query = require("./src/query");
 const app = express().use(bodyParser.json());
 
 const server = http.createServer(app);
-
-const io = new SocketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
-
-app.set("io", io);
 
 app.get("/api/:facilityCode/verification", async (req, res) => {
   let hubMode = req.query["hub.mode"];
@@ -61,6 +50,8 @@ app.get("/api/:facilityCode/verification", async (req, res) => {
 });
 
 const handleRequest = (body) => {};
+
+const publishToQueue = (facilityCode, data) => {};
 
 app.post("/api/:facilityCode/verification", async (req, res) => {
   try {
@@ -108,7 +99,6 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
     });
 
     let waId;
-    const io = req.app.get("io");
 
     messagesArray.forEach(async (element) => {
       const existingMessage = await query("ReceivedMessages").findFirst({
@@ -132,7 +122,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
         console.log("1");
         if (waId !== element.wa_id) {
           waId = element.wa_id;
-          receiveMessages(io, `${facilityCode}-${element.wa_id}`);
+          publishToQueue(facilityCode, element);
           console.log("2");
         }
         console.log(`${facilityCode}-${element.wa_id}`, " Saved Message");
@@ -383,144 +373,6 @@ async function handleWhatsAppResponse(response, messageId) {
 //     res.status(500).send("Internal Server Error");
 //   }
 // });
-
-const receiveMessages = async (io, data) => {
-  const request = data.split("-");
-  const receivedMessages = await query("ReceivedMessages").findMany({
-    where: {
-      wa_id: request[1],
-      facility_code: request[0],
-      status: "active",
-    },
-  });
-  // console.log(receivedMessages);
-  console.log("SENT MESSAGE TO  ", data);
-  io.to(data).emit("receive_messages", receivedMessages);
-};
-
-const getContacts = async (io, whatsappBusinessPhoneNumberId, room) => {
-  const groupedMessages = await query("ReceivedMessages").groupBy({
-    by: ["wa_id"],
-    where: {
-      whatsappBusinessPhoneNumberId,
-      status: "active",
-    },
-    _count: {
-      _all: true,
-    },
-    _max: {
-      timestamp: true,
-    },
-  });
-
-  // Step 2: Fetch the latest message for each wa_id
-  const latestMessages = await Promise.all(
-    groupedMessages.map(async (group) => {
-      const latestMessage = await query("ReceivedMessages").findFirst({
-        where: {
-          wa_id: group.wa_id,
-          timestamp: group._max.timestamp,
-          whatsappBusinessPhoneNumberId,
-          status: "active",
-        },
-        orderBy: {
-          timestamp: "desc",
-        },
-      });
-
-      return {
-        ...latestMessage,
-        count: group._count._all,
-      };
-    })
-  );
-
-  io.to(room).emit("contacts", latestMessages);
-};
-
-io.on("connection", (socket) => {
-  console.log(`USER CONNECTED : ${socket.id}`);
-
-  socket.on("join_chat", (data) => {
-    socket.join(data);
-    console.log(data.split("-"));
-
-    console.log(`USER WITH ID: ${socket.id} joined chat: ${data}`);
-    receiveMessages(io, data);
-  });
-
-  socket.on("read_messages", ({ wa_id, whatsappBusinessPhoneNumberId }) => {
-    console.log(wa_id, whatsappBusinessPhoneNumberId);
-    query("ReceivedMessages").updateMany({
-      where: {
-        wa_id: wa_id,
-        whatsappBusinessPhoneNumberId: whatsappBusinessPhoneNumberId,
-        status: "active",
-      },
-      data: {
-        status: "read",
-      },
-    });
-  });
-
-  socket.on(
-    "send_message",
-    async ({
-      whatsappBusinessPhoneNumberId,
-      accessToken,
-      recipientPhoneNumber,
-      messageBody,
-      facilityCode,
-    }) => {
-      if (
-        !whatsappBusinessPhoneNumberId ||
-        !accessToken ||
-        !recipientPhoneNumber ||
-        !messageBody ||
-        !facilityCode
-      ) {
-        console.error({ error: "Missing required fields." });
-        console.log(
-          whatsappBusinessPhoneNumberId,
-          accessToken,
-          recipientPhoneNumber,
-          messageBody,
-          facilityCode
-        );
-      } else {
-        let insertId = 0;
-
-        const messageData = {
-          whatsappBusinessPhoneNumberId,
-          recipientPhoneNumber,
-          messageBody,
-          facilityCode,
-        };
-
-        try {
-          const sentMessage = await query("SentMessages").create({
-            data: messageData,
-          });
-          insertId = sentMessage.id;
-          // Send WhatsApp message
-          const response = await sendMessages(
-            whatsappBusinessPhoneNumberId,
-            accessToken,
-            recipientPhoneNumber,
-            messageBody
-          );
-          await handleWhatsAppResponse(response, sentMessage.id);
-        } catch (error) {
-          handleError(null, error, insertId);
-        }
-      }
-    }
-  );
-
-  socket.on("disconnect", () => {
-    console.log("User Disconnected", socket.id);
-  });
-});
 
 server.listen(3300, () => {
   console.log("Webhook App is Online");
