@@ -85,7 +85,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
               name: contact.profile.name,
               wa_id: contact.wa_id,
               message_id: message.id,
-              timestamp: message.timestamp,
+              timestamp: `${message.timestamp}`,
               facility_code: facilityCode,
               type: message.type,
               text: message.text?.body || null,
