@@ -139,6 +139,7 @@ app.post("/api/:facilityCode/verification", async (req, res) => {
 });
 
 app.post("/api/:facilityCode/send-message", async (req, res) => {
+  console.log(req.body);
   const {
     whatsappBusinessPhoneNumberId,
     accessToken,
@@ -147,6 +148,8 @@ app.post("/api/:facilityCode/send-message", async (req, res) => {
     previewUrl,
     facilityCode,
   } = req.body;
+
+  console.log(req.body);
 
   // Validate required fields
   if (
@@ -188,6 +191,7 @@ app.post("/api/:facilityCode/send-message", async (req, res) => {
     res.status(200).json({
       message: "Message sent successfully.",
       data: sentMessage,
+      response: response,
     });
   } catch (error) {
     handleError(res, error, sentMessage?.id);
@@ -262,7 +266,7 @@ function handleError(res, error, messageId) {
   if (res) {
     return res.status(500).json({
       message: "Failed to send message.",
-      error: error.message,
+      error: error,
     });
   } else {
     errorLog(
